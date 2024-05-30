@@ -39,7 +39,7 @@ async function run() {
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.SECRET_TOKEN, {
-        expiresIn: "1h",
+        expiresIn: "2h",
       });
       res.send({ token });
     });
@@ -79,19 +79,24 @@ async function run() {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
-    app.get("/user/admin/:email", verifyToken, async (req, res) => {
-      const email = req.params.email;
-      if (email !== req.decoded.email) {
-        return res.status(403).send({ message: "forbidden access" });
+    app.get(
+      "/user/admin/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        if (email !== req.decoded.email) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+        const query = { email: email };
+        const user = await userCollection.findOne(query);
+        let admin = false;
+        if (user) {
+          admin = user?.role === "admin";
+        }
+        res.send({ admin });
       }
-      const query = { email: email };
-      const user = await userCollection.findOne(query);
-      let admin = false;
-      if (user) {
-        admin = user?.role === "admin";
-      }
-      res.send({ admin });
-    });
+    );
     app.post("/users", async (req, res) => {
       const user = req.body;
       // insert email if user dosent exists:
@@ -134,7 +139,7 @@ async function run() {
 
     app.get("/menu/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id };
+      const query = { _id: new ObjectId(id) };
       const result = await menuCollection.findOne(query);
       // console.log(query);
       res.send(result);
